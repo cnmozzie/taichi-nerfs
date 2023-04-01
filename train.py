@@ -37,6 +37,8 @@ class NeRFSystem(LightningModule):
     def __init__(self, hparams):
         super().__init__()
         self.save_hyperparameters(hparams)
+        
+        self.val_outs = []
 
         self.warmup_steps = 256
         self.update_interval = 16
@@ -252,7 +254,11 @@ class NeRFSystem(LightningModule):
 
         return logs
 
-    def validation_epoch_end(self, outputs):
+    def on_validation_batch_end(self, outputs, batch, batch_idx):
+        self.val_outs.append(outputs)
+        
+    def on_validation_epoch_end(self):
+        outputs = self.val_outs
         psnrs = torch.stack([x['psnr'] for x in outputs])
         mean_psnr = psnrs.mean()
         self.log('test/psnr', mean_psnr, True)
@@ -296,7 +302,7 @@ if __name__ == '__main__':
         enable_model_summary=False,
         accelerator='gpu',
         devices=1,
-        strategy=None,
+        strategy='auto',
         num_sanity_val_steps=0,
         precision=16,
     )
